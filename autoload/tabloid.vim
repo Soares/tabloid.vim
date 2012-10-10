@@ -137,13 +137,8 @@ endfunction
 "       If 0, use the current shiftwidth (or tabstop, if &sw is 0.)
 "       If -1, use v:count.
 function! tabloid#set(spaces, width)
-	if a:width == -1
-		let l:width = v:count
-	elseif a:width == 0
-		let l:width = s:sw()
-	else
-		let l:width = a:width
-	endif
+	let l:width = a:width == -1 ? v:count : a:width
+	let l:width = l:width == 0 ? s:sw() : l:width
 	let l:end = line('$')
 
 	if a:spaces
