@@ -3,21 +3,37 @@
 
 Tabloid helps out your tabbing. It has two main uses:
 
-1. Change the file's tabbing just how you like it. The `:TabloidFix` command
-   updates the entire file to conform to your `&et`, `&sw`, and `&ts` settings.
-   It's smarter than `:retab` as it only affects indentation (not, for example,
-   tabs embedded in strings). It can also retain the tabbing in programming
-   languages that use whitespace for indentation (`:retab` chokes on python)\*.
-2. Update the existing file's tabbing. If everything is correctly tabbed but
-   suddenly you decide to expand all tabs into spaces, just `:TabloidSpacify`.
-   If you want to go back to tabs but make them all 6 characters wide, just
-   `:TabloidTabify 6`. Toggle tab style, 3 characters wide? `:TabloidToggle 3`.
-   Simple as that. Tabloid handles the `&et`, `&ts`, and `&sw` variables for
-   you. (Also `&sts`, as an added bonus.)
+1. Fix tabbing
+2. Change tabbing
 
-\* If you're changing from space-indents of one width to space-indents of
-another width you'll need to use `:TabloidFix N` where N is the old width of
-each indent.
+
+`:TabloidFix` fixes tabbing. It takes a range and it makes everything in that
+range conform to your `&et`, `&sw`, and `&ts` settings. Unlike `:retab`,
+`:TabloidFix` doesn't re-indent the file and it doesn't touch non-indent
+characters (i.e. tabs embedded in strings). It merely changes the width and type
+of each indent.
+
+
+`:TabloidSpacify`, `:TabloidTabify`, and `:TabloidToggle` change your file's
+tabbing once it's all consistent. They all take an arg specifying how wide to
+make the new indent levels, which defaults to the current shiftwidth. So if you
+want to change from tabs to spaces or visa versa,
+
+    :TabloidToggle
+
+will do the trick. If you want to change the file to 6-width spaces
+
+    :TabloidSpacify 6
+
+is for you. If you need to change it back to 2-width tabs
+
+    :TabloidTabify 8
+
+and then 2-width tabs
+
+    :TabloidTabify 2
+
+You get the picture.
 
 ## Mappings
 
@@ -45,6 +61,7 @@ warnings. Again, tabloid does not turn this on by default. We suggest you add
 
     set statusline+=%#sbError#
     set statusline+=%{tabloid#statusline()}
+    set statusline+=*
 
 to your statusline to help you detect lines that are improperly indented.
 
