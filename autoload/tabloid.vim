@@ -104,6 +104,21 @@ function! tabloid#spaces2tabs(line1, line2, sw)
 endfunction
 
 
+" Guesses how many spaces are in an indent level from a given line range.
+" Args:
+"   {integer} line1 Where to start looking.
+"   {integer} line2 Where to stop looking.
+function s:guessindent(line1, line2)
+	for l:num in range(a:line1, a:line2)
+		let l:width = len(substitute(getline(l:num), '\v\S.*$', '', ''))
+		if l:width > 0
+			return l:width
+		endif
+	endfor
+	return s:sw()
+endfunction
+
+
 " Fixes indentation in the given range.
 " Set &et, &sw, and &ts how you like them, then call tabloid#fix to update
 " thefile to match.
@@ -111,12 +126,13 @@ endfunction
 "   {integer} line1 Where to start.
 "   {integer} line2 Where to end.
 "   {integer?} width The width of space indents currently existing in the range.
-"       Since you've set &sw to what you want the shiftwidth to be, tabloid has
-"       no way to know what the shiftwidth was. For example, if tabloid comes
-"       across six spaces, it needs to know if that's 3 two-space indents or
-"       2 three-space indents. You need to let tabloid know what it's changing.
+"       If there are existing space-indents, tabloid needs to know how wide they
+"       are. It guesses at their width by looking at the first space indent in
+"       its range. If that's more or less than one indent then you'll need to
+"       pass in the width parameter to let tabloid#fix know.
 function! tabloid#fix(line1, line2, ...)
-	let l:width = a:0 > 0 && a:1 > 0 ? a:1 : s:sw()
+	let l:width = a:0 > 0 ? a:1 : 0
+	let l:width = l:width == 0 ? s:guessindent(line1, line2) : l:width
 	if &et
 		if l:width != s:sw()
 			call tabloid#spacewidth(a:line1, a:line2, l:width, s:sw())
