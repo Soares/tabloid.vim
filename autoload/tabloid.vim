@@ -4,10 +4,18 @@ endif
 let g:tabloid#autoloaded = 1
 
 
+" Statusline Message Levels:
+let g:tabloid#MESSAGE = 0
+let g:tabloid#INFO    = 1
+let g:tabloid#WARNING = 2
+let g:tabloid#ERROR   = 3
+
+
 " Regex Parts: All designed for use with \v
 let s:xp_spacefollowingspaces     = '(^ *)@<= '
 let s:xp_spacefollowingtabs       = '(^\t*)@<= '
 let s:xp_spacetab                 = '(^[\t ]*) \t'
+
 
 " Regexes:
 let s:re_et_tabs                  = '\v^ *\t+'
@@ -20,6 +28,7 @@ let s:re_tabindent                = '\v(^\t*)@<=\t'
 let s:re_tabindents               = '\v^\t+'
 let s:re_tabspaces                = '\v^\t+ '
 let s:re_tabspacetab              = '\v(^[\t ]*)@<= +\t@='
+
 
 " Creates a regex which matches each individual space indent.
 " Args:
@@ -236,10 +245,21 @@ endfunction
 
 
 " Creates a statusline message depending on the file's indentation errors.
+" Args:
+"   {integer} mode 0 for message, 1 for info, 2 for warning, 3 for error.
+"       Default 3.
 " Returns:
 "   A string for use in a statusline.
-function! tabloid#statusline()
-	return tabloid#haserror() ? (&et ? '[▷]' : '[ ]') : ''
+function! tabloid#statusline(...)
+	let l:level = a:0 > 0 ? a:1 : g:tabloid#ERROR
+	if l:level == g:tabloid#MESSAGE && (&et || s:sw() == &ts)
+		return '[' . (&et ? ' ' : '▷') . s:sw() . ']'
+	elseif l:level == g:tabloid#INFO && s:sw() != &ts && !&et
+		return '[' . s:sw() . ' ' . &ts . '▷]'
+	elseif l:level == g:tabloid#ERROR && tabloid#haserror()
+		return '[' . (&et ? '▷' : ' ') . ']'
+	endif
+	return ''
 endfunction
 
 

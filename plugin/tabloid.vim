@@ -39,9 +39,9 @@ command! -range=% -nargs=? TabloidFix
 
 if g:tabloid_automap
 	noremap <leader>== :TabloidFix<CR>
-	noremap <leader>=s :<C-U>call tabloid#set(1, -1)<CR>
-	noremap <leader>=t :<C-U>call tabloid#set(0, -1)<CR>
-	noremap <leader>=T :<C-U>call tabloid#set(!&et, -1)<CR>
+	noremap <silent> <leader>=s :<C-U>call tabloid#set(1, -1)<CR>
+	noremap <silent> <leader>=t :<C-U>call tabloid#set(0, -1)<CR>
+	noremap <silent> <leader>=T :<C-U>call tabloid#set(!&et, -1)<CR>
 	noremap <leader>=n :TabloidNext<CR>
 	noremap <leader>=p :TabloidPrev<CR>
 endif

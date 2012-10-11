@@ -110,12 +110,12 @@ MAPPINGS                                        *tabloid-mappings*
 
 Tabloid does not change your mappings by default. We recommend you add your
 own mappings to tabloid, as follows: >
-	noremap <leader>== :TabloidFix<CR>
-	noremap <leader>=s :<C-U>call tabloid#set(1, -1)<CR>
-	noremap <leader>=t :<C-U>call tabloid#set(0, -1)<CR>
-	noremap <leader>=T :<C-U>call tabloid#set(!&et, -1)<CR>
-	noremap <leader>=n :TabloidNext<CR>
-	noremap <leader>=p :TabloidPrev<CR>
+	noremap          <leader>== :TabloidFix<CR>
+	noremap <silent> <leader>=s :<C-U>call tabloid#set(1, -1)<CR>
+	noremap <silent> <leader>=t :<C-U>call tabloid#set(0, -1)<CR>
+	noremap <silent> <leader>=T :<C-U>call tabloid#set(!&et, -1)<CR>
+	noremap          <leader>=n :TabloidNext<CR>
+	noremap          <leader>=p :TabloidPrev<CR>
 < Notice the use of <C-U> and |tabloid#set| instead of using tabloid commands
 to change file spacing. This is a neat trick which allows you to use the
 command with a count. For example, if you use the mappings above (assuming
@@ -140,7 +140,7 @@ to your statusline with the following command: >
 	set statusline+=%*
 <
 
-						*tabloid#statusline()*
+tabloid#statusline({level})                     *tabloid#statusline()*
 For a slightly prettier statusline error use this function. It returns '[ ]'
 if your file has an indentation error due to misplaced spaces and '[▷]' if the
 error is due to misplaced tabs. Use it as follows: >
@@ -148,6 +148,38 @@ error is due to misplaced tabs. Use it as follows: >
 	set statusline+=%{tabloid#statusline()}
 	set statusline+=%*
 <
+You can coax more functionality out of 'tabloid#statusline()' by passing it
+a {level}. {level} must be one of:
+
+0. g:tabloid#MESSAGE
+1. g:tabloid#INFO
+2. g:tabloid#WARNING
+3. g:tabloid#ERROR
+
+If not given, it defaults to g:tabloid#ERROR.
+
+When {level} is g:tabloid#MESSAGE the output is '[ X]' if indents are spaces
+or '[▷X]' if indents are tabs, where X is the current indent width. No message
+is displayed if spaces and tabs are being mixed intentionally.
+
+When {level} is g:tabloid#INFO only produces output if spaces and tabs are
+being mixed intentionally, in which case the output is '[X Y▷]' where
+X |shiftwdith| and Y is |tabstop|.
+
+When {level} is g:tabloid#ERROR output is as described above.
+
+Currently, {level} g:tabloid#WARNING has no effect.
+
+We recommend something like the following: >
+	set statusline+=%*
+	set statusline+=%{tabloid#statusline(g:tabloid#MESSAGE)}
+	set statusline+=%#WarningMsg#
+	set statusline+=%{tabloid#statusline(g:tabloid#INFO)}
+	set statusline+=%#ErrorMsg#
+	set statusline+=%{tabloid#statusline(g:tabloid#ERROR)}
+	set statusline+=%*
+< for maximum statusline information.
+
 You are encouraged to write your own statusline function referencing
 |tabloid#haserror()| if you prefer different fromatting.
 
