@@ -4,22 +4,48 @@ endif
 let g:tabloid#autoloaded = 1
 
 
-" Tabloid state flags
-let g:tabloid#OK = 0
-let g:tabloid#TABS = 1
-let g:tabloid#SPACES = 2
-let g:tabloid#MIXED = or(g:tabloid#TABS, g:tabloid#SPACES)
+" Regex Parts: All designed for use with \v
+let s:xp_spacefollowingspaces     = '(^ *)@<= '
+let s:xp_spacefollowingtabs       = '(^\t*)@<= '
+let s:xp_spacetab                 = '(^[\t ]*) \t'
 
+" Regexes:
+let s:re_et_tabs                  = '\v^ *\t+'
+let s:re_linecontent              = '\v\S.*$'
+let s:re_noet_onespace            = '\v^\t* '
+let s:re_noet_spaces              = '\v^\t* +'
+let s:re_spaceindents             = '\v^ +'
+let s:re_spacetabs                = '\v^ +\t'
+let s:re_tabindent                = '\v(^\t*)@<=\t'
+let s:re_tabindents               = '\v^\t+'
+let s:re_tabspaces                = '\v^\t+ '
+let s:re_tabspacetab              = '\v(^[\t ]*)@<= +\t@='
 
-" Searches the whole file for a regex.
+" Creates a regex which matches each individual space indent.
 " Args:
-"   {string} regex The regex to search for.
-"   {integer} flag The flag to return if found.
+"   {integer?} The width of each space indent. Default s:sw().
 " Returns:
-"   0 if the regex is not present in the file.
-"   flag if the search is present in the file.
-function s:flag(regex, flag)
-	return search(a:regex, 'nw') == 0 ? 0 : a:flag
+"   The regex.
+function! s:re_spaceindent(...)
+	let l:sw = a:0 > 0 ? a:1 : s:sw()
+	return '\v'.s:xp_spacefollowingspaces.'{'.l:sw.'}'
+endfunction
+
+
+" Creates a regex which finds the next improper indent.
+" Args:
+"   {string?} The filetype to generate the regex for. Default &ft.
+" Returns:
+"   The regex.
+function! s:re_badindent(...)
+	let l:ft = a:0 > 0 ? a:1 : &ft
+	if &et
+		return s:re_et_tabs
+	elseif s:spaces_after_tabs()
+		return '\v('.s:xp_spacefollowingtabs.'{'.&ts.',}|'.s:xp_spacetab.')'
+	else
+		return s:re_noet_spaces
+	endif
 endfunction
 
 
@@ -31,10 +57,32 @@ function! s:sw()
 endfunction
 
 
+" Whether or not to allow spaces after tabs.
+" Args:
+"   {string?} The filetype to check. Default &ft.
+" Returns:
+"   Boolean.
+function! s:spaces_after_tabs(...)
+	if exists('b:tabloid_abide_spaces')
+		return b:tabloid_abide_spaces
+	endif
+	if type(g:tabloid_abide_spaces) == type(0)
+		return g:tabloid_abide_spaces
+	endif
+	let l:ft = a:0 > 0 ? a:1 : &ft
+	if type(g:tabloid_abide_spaces) == type([])
+		return index(g:tabloid_abide_spaces, l:ft) > -1
+	endif
+	if type(g:tabloid_abide_spaces) == type({})
+		return get(g:tabloid_abide_spaces, l:ft, 1)
+	endif
+endfunction
+
+
 " Creates a string of one character repeated the specified number of times.
 " Args:
 "   {integer?} n The length of the string. Default: s:sw()
-"   {char?} c The character to repeat.
+"   {char?} c The character to repeat. Default: space.
 " Returns:
 "   A string of c's repeated n times.
 function! s:spaces(...)
@@ -52,23 +100,36 @@ endfunction
 "   {string} rep The string to replace pat with.
 function! s:sub(line1, line2, pat, rep)
 	let l:gdefault = &gdefault
-	set gdefault
-	exe 'silent '.a:line1.','.a:line2.'s/'.a:pat.'/'.a:rep.'/e'
+	set nogdefault
+	exe 'silent '.a:line1.','.a:line2.'s/'.a:pat.'/'.a:rep.'/ge'
 	let &gdefault = l:gdefault
 endfunction
 
 
-" Creates a regex which finds the next improper indent.
+" Searches the whole file for a regex.
+" Args:
+"   {string} regex The regex to search for.
+"   {integer} flag The flag to return if found.
 " Returns:
-"   The regex.
-function! s:wrong_regex()
-	if &et
-		return '\v^ *\t+'
-	elseif get(g:tabloid_allow_naked_modeline, &ft, 0)
-		return '\v^(\t* +| +(vim?:)@!)'
-	else
-		return '\v^\t* +'
-	endif
+"   0 if the regex is not present in the file.
+"   flag if the search is present in the file.
+function s:flag(regex, flag)
+	return search(a:regex, 'nw') == 0 ? 0 : a:flag
+endfunction
+
+
+" Guesses how many spaces are in an indent level from a given line range.
+" Args:
+"   {integer} line1 Where to start looking.
+"   {integer} line2 Where to stop looking.
+function s:guessindent(line1, line2)
+	for l:num in range(a:line1, a:line2)
+		let l:width = len(substitute(getline(l:num), s:re_linecontent, '', ''))
+		if l:width > 0
+			return l:width
+		endif
+	endfor
+	return s:sw()
 endfunction
 
 
@@ -80,7 +141,8 @@ endfunction
 "   {integer} newsw The new width of each indent.
 function! tabloid#spacewidth(line1, line2, oldsw, newsw)
 	if a:oldsw == a:newsw | return | endif
-	call s:sub(a:line1, a:line2, '\v(^ *)@<= {'.a:oldsw.'}', s:spaces(a:newsw))
+	let l:re_spaceindent = s:re_spaceindent(a:oldsw)
+	call s:sub(a:line1, a:line2, l:re_spaceindent, s:spaces(a:newsw))
 endfunction
 
 
@@ -90,7 +152,16 @@ endfunction
 "   {integer} line2 Where to end.
 "   {integer} sw How wide to make each new indent.
 function! tabloid#tabs2spaces(line1, line2, sw)
-	call s:sub(a:line1, a:line2, '\v(^\t*)@<=\t', s:spaces(a:sw))
+	call s:sub(a:line1, a:line2, s:re_tabindent, s:spaces(a:sw))
+endfunction
+
+
+" Removes any spaces that are found before tab indents in the given range.
+" Args:
+"   {integer} line1 Where to start.
+"   {integer} line2 Where to end.
+function! tabloid#cleanspaces(line1, line2)
+	call s:sub(a:line1, a:line2, s:re_tabspacetab, '')
 endfunction
 
 
@@ -100,22 +171,7 @@ endfunction
 "   {integer} line2 Where to end.
 "   {integer} sw The current width of each indent.
 function! tabloid#spaces2tabs(line1, line2, sw)
-	call s:sub(a:line1, a:line2, '\v(^ *)@<= {'.a:sw.'}', '\t')
-endfunction
-
-
-" Guesses how many spaces are in an indent level from a given line range.
-" Args:
-"   {integer} line1 Where to start looking.
-"   {integer} line2 Where to stop looking.
-function s:guessindent(line1, line2)
-	for l:num in range(a:line1, a:line2)
-		let l:width = len(substitute(getline(l:num), '\v\S.*$', '', ''))
-		if l:width > 0
-			return l:width
-		endif
-	endfor
-	return s:sw()
+	call s:sub(a:line1, a:line2, s:re_spaceindent(a:sw), '\t')
 endfunction
 
 
@@ -132,14 +188,14 @@ endfunction
 "       pass in the width parameter to let tabloid#fix know.
 function! tabloid#fix(line1, line2, ...)
 	let l:width = a:0 > 0 ? a:1 : 0
-	let l:width = l:width == 0 ? s:guessindent(line1, line2) : l:width
+	let l:width = l:width == 0 ? s:guessindent(a:line1, a:line2) : l:width
 	if &et
-		if l:width != s:sw()
-			call tabloid#spacewidth(a:line1, a:line2, l:width, s:sw())
-		endif
+		call tabloid#spacewidth(a:line1, a:line2, l:width, s:sw())
 		call tabloid#tabs2spaces(a:line1, a:line2, s:sw())
 	else
-		call tabloid#spaces2tabs(a:line1, a:line2, l:width)
+		call tabloid#spacewidth(a:line1, a:line2, l:width, s:sw())
+		call tabloid#spaces2tabs(a:line1, a:line2, &ts)
+		call tabloid#cleanspaces(a:line1, a:line2)
 	endif
 endfunction
 
@@ -171,51 +227,29 @@ function! tabloid#set(spaces, width)
 endfunction!
 
 
-" Finds the state of tabs and spaces in the file.
+" Discovers whether or not the file has indentation errors.
 " Returns:
-"   A set of flags. If the file is using spaces for indents, the flags returned
-"   will include g:tabloid#SPACES. If the file is using tabs for indents, the
-"   flags returned will include g:tabloid#TABS.
-function! tabloid#state()
-	let l:tabs = s:flag('\v^\t', g:tabloid#TABS)
-	let l:modeline = get(g:tabloid_allow_naked_modeline, &ft, 0)
-	let l:space_regex = l:modeline ? '\v^ +(vim?:)@!' : '\v^ '
-	let l:spaces = s:flag(l:space_regex, g:tabloid#SPACES)
-	let l:tabspaces = s:flag('\v^\t+ ', g:tabloid#MIXED)
-	let l:spacetabs = s:flag('\v^ +\t', g:tabloid#MIXED)
-	return or(l:tabs, or(l:spaces, or(l:tabspaces, l:spacetabs)))
+"   Boolean.
+function! tabloid#haserror()
+	return index(g:tabloid_exempt, &ft) < 0 && search(s:re_badindent(), 'nw')
 endfunction
 
 
-" Creates a statusline message describing the state of the file.
+" Creates a statusline message depending on the file's indentation errors.
 " Returns:
-"   '[mixed]' if the file mixes spaces and tabs
-"   '[tabs]' if the file has tab indenting when &et is set
-"   '[spaces]' if the file has space indenting when &et is not set
-"   '' otherwise, or if the filetype is exempt from indentation warnings.
+"   A string for use in a statusline.
 function! tabloid#statusline()
-	if get(g:tabloid_exempt, &ft, 0)
-		return ''
-	endif
-	let l:result = tabloid#state()
-	if l:result == g:tabloid#MIXED
-		return '[mixed]'
-	elseif &et && l:result == g:tabloid#TABS
-		return '[tabs]'
-	elseif !&et && l:result == g:tabloid#SPACES
-		return '[spaces]'
-	endif
-	return ''
+	return tabloid#haserror() ? (&et ? '[▷]' : '[ ]') : ''
 endfunction
 
 
 " Jumps the cursor to the next improperly indented line.
 function! tabloid#next()
-	call search(s:wrong_regex(), 'w')
+	call search(s:re_badindent(), 'w')
 endfunction
 
 
 " Jumps the cursor to the previous improperly indented line.
 function! tabloid#prev()
-	call search(s:wrong_regex(), 'wb')
+	call search(s:re_badindent(), 'wb')
 endfunction
