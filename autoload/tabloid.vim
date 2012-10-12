@@ -78,6 +78,9 @@ function! s:spaces_after_tabs(...)
 	if exists('b:tabloid_abide_spaces')
 		return b:tabloid_abide_spaces
 	endif
+	if s:sw() != &ts && !&et
+		return 1
+	endif
 	if type(g:tabloid_abide_spaces) == type(0)
 		return g:tabloid_abide_spaces
 	endif
