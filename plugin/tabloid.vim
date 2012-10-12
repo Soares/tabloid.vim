@@ -10,6 +10,12 @@ endif
 let g:loaded_tabloid = 1
 
 
+" Whether or not to automatically detect and set tab settings.
+if !exists('g:tabloid_autodetect')
+	let g:tabloid_autodetect = 1
+endif
+
+
 " Filetypes that are exempt from tabloid warnings.
 if !exists('g:tabloid_exempt')
 	let g:tabloid_exempt = []
@@ -28,6 +34,18 @@ if !exists('g:tabloid_automap')
 endif
 
 
+" The regex to match the vimrc script.
+if !exists('g:tabloid_vimrc_regex')
+	let g:tabloid_vimrc_regex = '\v([\._]vimrc|vim\.rc)$'
+endif
+
+
+" The default tabstop.
+if !exists('g:tabloid_default_width')
+	let g:tabloid_default_width = 0
+endif
+
+
 command! TabloidNext call tabloid#next()
 command! TabloidPrev call tabloid#prev()
 command! -count=0 TabloidToggle  call tabloid#set(!&et, <count>)
@@ -35,6 +53,14 @@ command! -count=0 TabloidSpacify call tabloid#set(1, <count>)
 command! -count=0 TabloidTabify  call tabloid#set(0, <count>)
 command! -range=% -nargs=? TabloidFix
 		\ call tabloid#fix(<line1>, <line2>, <args>)
+
+
+if !empty(g:tabloid_autodetect) || type(g:tabloid_autodetect) == type({})
+	augroup tabloid
+		autocmd!
+		autocmd BufRead * call tabloid#detect()
+	augroup end
+endif
 
 
 if g:tabloid_automap

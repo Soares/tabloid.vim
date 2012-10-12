@@ -7,6 +7,7 @@ License: Same terms as Vim itself (see |license|).
 CONTENTS                                        *tabloid-contents*
 	1. Introduction...................................|tabloid-intro|
 	2. Configuration..................................|tabloid-config|
+	3. Detection......................................|tabliod-detect|
 	3. Commands.......................................|tabloid-commands|
 	4. Mappings.......................................|tabloid-mappings|
 	4. Status line....................................|tabloid-statusline|
@@ -22,6 +23,7 @@ Tabloid makes your tabbing sensational. It helps you:
 * Change indentation
 * Notice incorrect indentation with statusline warnings
 * Jump to and from incorrect indentation
+* Automatically detect file indents
 
 =============================================================================
 CONFIGURATION                                   *tabloid-config*
@@ -31,8 +33,38 @@ Use this to disable the plugin entirely: >
 	let g:loaded_tabloid = 1
 <
 
+						*g:tabloid_autodetect*
+Whether tabloid should automatically try to detect the indentation in new
+files. Enabled by default.
+
+May be a number (true/false), a whitelist of filetypes to autodetect on: >
+	let g:tabloid_autodetect = ['c', 'python']
+<
+or a black dictionary of filetypes not to detect on: >
+	let g:tabloid_autodetect = {'html': 0, 'markdown': 0}
+<
+See |tabloid-detect| for details.
+
 						*g:tabloid_exempt*
 A list of filetypes exempt from tabloid statusline complaints.
+
+						*g:tabloid_vimrc_regex*
+A regex that matches the vimrc file sourced by vim. By default it matches
+'.vimrc', '_vimrc', and 'vim.rc' files. If you are using a non-standard vimrc
+we recommend you put the following in your vimrc: >
+	let g:tabloid_vimrc_regex = expand('<sfile>:t').'$'
+<
+This is used by |tabloid-detection| to help it know when it's OK to override
+the current tab settings. If set incorrectly tabloid will not know that it can
+override your vimrc's 'tabstop' and 'shiftwidth' settings.
+
+If you do not set 'tabstop' or 'shiftwidth' in your vimrc you can ignore this
+setting.
+
+						*g:tabloid_default_width*
+The default tab width for |tabloid-detection| to use when it finds
+a tab-indented file. If not given, this will be whatever you set 'tabstop' to
+in your vimrc, which is 8 by default.
 
 						*g:tabloid_abide_spaces*
 Whether or not to allow spaces after tabs when |expandtab| is off.
@@ -62,6 +94,34 @@ you don't like this feature then the following is strongly suggested: >
 
 						*g:tabloid_automap*
 Whether to make the default key mappings. See |tabloid-mapping|. Default :0
+
+=============================================================================
+DETECTION                                       *tabloid-detect*
+
+When entering a new file tabloid can try to detect what indentation that file
+uses. In order to detect this, it does the following:
+
+* If the file has only space indents it looks for the smallest space indent
+  can find (that is not just one space) and assumes that that is the width of
+  a space indent.
+* If the file has only tab indents it sets both 'shiftwidth' and 'tabstop' to
+  |g:tabloid_default_width| (which falls back to the default 'tabstop').
+* If the file is mixing spaces and indents it assumes that each tab is two
+  indents wide. It set your settings accordingly.
+
+Tabbing will only be autodetected if 'shiftwidth' and 'tabstop' have not been
+set elsewhere.
+
+Detection only occurs if |g:tabloid_autodetect| is on and allows autodetection
+on the filetype.
+
+Detection does not occur if 'tabstop' or 'shiftwidth' have already been set.
+Your vimrc is exempt from this rule, but only if |g:tabloid_vimrc_regex| is
+set correctly.
+
+If detection is not occurring you might want to check whether or not a view
+file is setting 'tabstop' and 'shiftwidth' before detection occurs. See
+|views|.
 
 =============================================================================
 COMMANDS                                        *tabloid-commands*

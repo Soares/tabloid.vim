@@ -11,6 +11,15 @@ let g:tabloid#WARNING = 2
 let g:tabloid#ERROR   = 3
 
 
+" Setting Sources:
+let g:tabloid#LOCAL    = 0
+let g:tabloid#VIMRC    = 1
+let g:tabloid#VIEW     = 2
+let g:tabloid#MODELINE = 3
+let g:tabloid#TABLOID  = 4
+let g:tabloid#PLUGIN   = 5
+
+
 " Regex Parts: All designed for use with \v
 let s:xp_spacefollowingspaces     = '(^ *)@<= '
 let s:xp_spacefollowingtabs       = '(^\t*)@<= '
@@ -19,6 +28,7 @@ let s:xp_spacetab                 = '(^[\t ]*) \t'
 
 " Regexes:
 let s:re_et_tabs                  = '\v^ *\t+'
+let s:re_leadspace                = '\v^ '
 let s:re_linecontent              = '\v\S.*$'
 let s:re_noet_onespace            = '\v^\t* '
 let s:re_noet_spaces              = '\v^\t* +'
@@ -129,6 +139,30 @@ function s:guessindent(line1, line2)
 endfunction
 
 
+" Guesses where a setting was set from.
+" @param {string} setting The setting to check.
+" @return {number} one of Setting Sources, above.
+function! s:setting_source(setting)
+	redir => l:source
+	execute 'silent verbose set '.a:setting.'?'
+	redir end
+	let l:lines = split(l:source, '\n')
+	if len(l:lines) <= 1
+		return g:tabloid#LOCAL
+	elseif l:lines[1] =~# g:tabloid_vimrc_regex
+		return g:tabloid#VIMRC
+	elseif l:lines[1] =~# 'Last set from '.&viewdir
+		return g:tabloid#VIEW
+	elseif l:lines[1] =~# 'Last set from modeline$'
+		return g:tabloid#MODELINE
+	elseif l:lines[1] =~# 'tabloid.vim$'
+		return g:tabloid#TABLOID
+	else
+		return g:tabloid#PLUGIN
+	endif
+endfunction
+
+
 " Changes the width of space indents in the given range.
 " @param {integer} line1 Where to start.
 " @param {integer} line2 Where to end.
@@ -205,10 +239,10 @@ function! tabloid#set(spaces, width)
 		call tabloid#spaces2tabs(1, l:end, s:sw())
 	endif
 
-	let &sts = l:width
-	let &sw = l:width
-	let &ts = l:width
-	let &et = !!a:spaces
+	let &l:sts = l:width
+	let &l:sw = l:width
+	let &l:ts = l:width
+	let &l:et = !!a:spaces
 endfunction!
 
 
@@ -244,4 +278,57 @@ endfunction
 " Jumps the cursor to the previous improperly indented line.
 function! tabloid#prev()
 	call search(s:re_badindent(), 'wb')
+endfunction
+
+
+" Detects the current indentation in the file.
+function! tabloid#detect()
+	" Exit if autodetect is 0
+	if type(g:tabloid_autodetect) == type(0)
+		if !g:tabloid_autodetect
+			return
+		endif
+	" Exit if autodetect is a list without us in it
+	elseif type(g:tabloid_autodetect) == type([])
+		if index(g:tabloid_autodetect, &ft) == -1
+			return
+		endif
+	" Exit if autodetect is a dict where we're explicity blacklisted
+	elseif !get(g:tabloid_autodetect, &ft, 1)
+		return
+	endif
+	" Exit if tabstop was set from a modeline or plugin
+	let l:setfrom = max([s:setting_source('ts'), s:setting_source('sw')])
+	if l:setfrom > g:tabloid#VIMRC
+		return
+	endif
+	" Check if there are tabs in the file
+	let l:tabs = search(s:re_tabindents, 'nw') != 0
+	" Try to figure out how many spaces to a space indent
+	for l:i in range(2, 16)
+		let l:indent = search(s:re_leadspace.'{'.l:i.'}', 'nw') != 0
+		" They're mixing tabs and spaces
+		if l:indent && l:tabs
+			let &l:sw = l:i
+			let &l:ts = l:i * 2
+			let &l:sts = l:i
+			setlocal noet
+			return
+		" They're using only spaces
+		elseif l:indent
+			let &l:sw = l:i
+			let &l:ts = l:i
+			let &l:sts = l:i
+			setlocal et
+			return
+		endif
+	endfor
+	" They're using only tabs
+	if l:tabs
+		if g:tabloid_default_width
+			let &l:ts = g:tabloid_default_width
+		endif
+		let &l:sw = &ts
+		setlocal noet
+	endif
 endfunction
