@@ -329,6 +329,7 @@ function! tabloid#detect()
 			let &l:ts = g:tabloid_default_width
 		endif
 		let &l:sw = &ts
+		let &l:sts = &l:sw
 		setlocal noet
 	endif
 endfunction
