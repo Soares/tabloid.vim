@@ -11,7 +11,7 @@ let g:tabloid#WARNING = 2
 let g:tabloid#ERROR   = 3
 
 
-" Setting Sources:
+" Setting Sources: VIMRC and LOCAL will be clobbered by tabloid.
 let g:tabloid#LOCAL    = 0
 let g:tabloid#VIMRC    = 1
 let g:tabloid#VIEW     = 2
@@ -304,18 +304,19 @@ function! tabloid#detect()
 	endif
 	" Check if there are tabs in the file
 	let l:tabs = search(s:re_tabindents, 'nw') != 0
+	if l:tabs
+		if g:tabloid_default_width
+			let &l:ts = g:tabloid_default_width
+		endif
+		let &l:sw = &ts
+		let &l:sts = &sw
+		setlocal noet
+		return
+	endif
 	" Try to figure out how many spaces to a space indent
 	for l:i in range(2, 16)
 		let l:indent = search(s:re_leadspace.'{'.l:i.'}', 'nw') != 0
-		" They're mixing tabs and spaces
-		if l:indent && l:tabs
-			let &l:sw = l:i
-			let &l:ts = l:i * 2
-			let &l:sts = l:i
-			setlocal noet
-			return
-		" They're using only spaces
-		elseif l:indent
+		if l:indent
 			let &l:sw = l:i
 			let &l:ts = l:i
 			let &l:sts = l:i
@@ -323,13 +324,4 @@ function! tabloid#detect()
 			return
 		endif
 	endfor
-	" They're using only tabs
-	if l:tabs
-		if g:tabloid_default_width
-			let &l:ts = g:tabloid_default_width
-		endif
-		let &l:sw = &ts
-		let &l:sts = &l:sw
-		setlocal noet
-	endif
 endfunction
