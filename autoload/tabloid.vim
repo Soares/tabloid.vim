@@ -286,39 +286,44 @@ endfunction
 
 " Detects the current indentation in the file.
 function! tabloid#detect()
-	" Exit if autodetect is 0
+	" Exit if autodetect is 0.
 	if type(g:tabloid_autodetect) == type(0)
 		if !g:tabloid_autodetect
 			return
 		endif
-	" Exit if autodetect is a list without us in it
+	" Exit if autodetect is a list without us in it.
 	elseif type(g:tabloid_autodetect) == type([])
 		if index(g:tabloid_autodetect, &ft) == -1
 			return
 		endif
-	" Exit if autodetect is a dict where we're explicity blacklisted
+	" Exit if autodetect is a dict where we're explicity blacklisted.
 	elseif !get(g:tabloid_autodetect, &ft, 1)
 		return
 	endif
-	" Exit if tabstop was set from a modeline or plugin
+	" Exit if tabstop was set from a modeline or plugin.
 	let l:setfrom = max([s:setting_source('ts'), s:setting_source('sw')])
 	if l:setfrom > g:tabloid#VIMRC
 		return
 	endif
-	" Check if there are tabs in the file
+	" Check if there are tabs in the file.
 	let l:tabs = search(s:re_tabindents, 'nw') != 0
+	" Assume they're not mixing tabs and spaces.
+	" It's almost impossible to tell if you're mixing tabs and spaces or just
+	" aligning long lines with your spaces, so we make the assumption that you
+	" aren't insane.
+	if l:tabs
+		if g:tabloid_default_width
+			let &l:ts = g:tabloid_default_width
+		endif
+		let &l:sw = &ts
+		setlocal noet
+		return
+	endif
 	" Try to figure out how many spaces to a space indent
 	for l:i in range(2, 16)
-		let l:indent = search(s:re_leadspace.'{'.l:i.'}', 'nw') != 0
+		let l:indent = search(s:re_leadspace.'{'.l:i.'} @!', 'nw') != 0
 		" They're mixing tabs and spaces
-		if l:indent && l:tabs
-			let &l:sw = l:i
-			let &l:ts = l:i * 2
-			let &l:sts = l:i
-			setlocal noet
-			return
-		" They're using only spaces
-		elseif l:indent
+		if l:indent
 			let &l:sw = l:i
 			let &l:ts = l:i
 			let &l:sts = l:i
@@ -326,12 +331,4 @@ function! tabloid#detect()
 			return
 		endif
 	endfor
-	" They're using only tabs
-	if l:tabs
-		if g:tabloid_default_width
-			let &l:ts = g:tabloid_default_width
-		endif
-		let &l:sw = &ts
-		setlocal noet
-	endif
 endfunction

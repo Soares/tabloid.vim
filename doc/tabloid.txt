@@ -78,11 +78,11 @@ You may turn off this support: >
 	let g:tabloid_abide_spaces = 0
 < This turns on errors for any file that mixes tabs and spaces.
 
-You may also set this variable as a blacklist of supporting filetypes: >
+You may also set this variable as a whitelist of supporting filetypes: >
 	let g:tabloid_abide_spaces = ['java', 'cpp']
 < which allows tab/space mixing only in 'java' and 'cpp' files.
 
-You may also set this variable as a whitedict of unsupported filetypes: >
+You may also set this variable as a blackdict of unsupported filetypes: >
 	let g:tabloid_abide_spaces = {'python': 0, 'haskell': 0}
 < which allows tab/space mixing in every file except 'python' and 'haskell'
 files.
