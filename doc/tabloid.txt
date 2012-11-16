@@ -7,11 +7,9 @@ License: Same terms as Vim itself (see |license|).
 CONTENTS                                        *tabloid-contents*
 	1. Introduction...................................|tabloid-intro|
 	2. Configuration..................................|tabloid-config|
-	3. Detection......................................|tabliod-detect|
 	3. Commands.......................................|tabloid-commands|
-	4. Mappings.......................................|tabloid-mappings|
 	4. Status line....................................|tabloid-statusline|
-	5. Extras.........................................|tabloid-extras|
+	5. Functions......................................|tabloid-functions|
 	6. About..........................................|tabloid-about|
 
 =============================================================================
@@ -190,69 +188,53 @@ You're encouraged to customize your mappings to fit your needs.
 STATUSLINE                                      *tabloid-statusline*
 
 Tabloid does not change your status line, but it does provide hooks for you
-to add indentation warnings to your status line.
+to add indentation warnings to your status line manually.
 
-						*tabloid#haserror()*
-This function lets you know when a file has indentation errors. You can add it
-to your statusline with the following command: >
+You are encouraged to write your own statusline function using
+|tabloid#haserror()| if you prefer different formatting.
+
+tabloid#status#flag()				*tabloid#status#flag()*
+	Returns the text of the first non-empty statusline flag, in decreasing
+	order of severity (error -> info -> message).
+
+tabloid#status#error()				*tabloid#status#error()*
+	[ ]	if the file has an indentation error due to misplaced spaces.
+	[▷]	if the file has an indentation error due to misplaced tabs.
+	Use as follows:
+>
 	set statusline+=%#ErrorMsg#
-	set statusline+=%{tabloid#haserror()?'[indent]':''}
+	set statusline+=%{tabloid#status#error()}
 	set statusline+=%*
 <
 
-tabloid#statusline({level})                     *tabloid#statusline()*
-For a slightly prettier statusline error use this function. It returns '[ ]'
-if your file has an indentation error due to misplaced spaces and '[▷]' if the
-error is due to misplaced tabs. Use it as follows: >
-	set statusline+=%#ErrorMsg#
-	set statusline+=%{tabloid#statusline()}
-	set statusline+=%*
-<
-You can coax more functionality out of 'tabloid#statusline()' by passing it
-a {level}. {level} must be one of:
+tabloid#status#alert()				*tabloid#status#alert()*
+	[X Y▷]	when spaces and tabs are mixed: X being the shiftwidth and
+		Y being the tabstop.
 
-0. g:tabloid#MESSAGE
-1. g:tabloid#INFO
-2. g:tabloid#WARNING
-3. g:tabloid#ERROR
-
-If not given, it defaults to g:tabloid#ERROR.
-
-When {level} is g:tabloid#MESSAGE the output is '[ X]' if indents are spaces
-or '[▷X]' if indents are tabs, where X is the current indent width. No message
-is displayed if spaces and tabs are being mixed intentionally.
-
-When {level} is g:tabloid#INFO only produces output if spaces and tabs are
-being mixed intentionally, in which case the output is '[X Y▷]' where
-X |shiftwdith| and Y is |tabstop|.
-
-When {level} is g:tabloid#ERROR output is as described above.
-
-Currently, {level} g:tabloid#WARNING has no effect.
-
-We recommend something like the following: >
-	set statusline+=%*
-	set statusline+=%{tabloid#statusline(g:tabloid#MESSAGE)}
-	set statusline+=%#WarningMsg#
-	set statusline+=%{tabloid#statusline(g:tabloid#INFO)}
-	set statusline+=%#ErrorMsg#
-	set statusline+=%{tabloid#statusline(g:tabloid#ERROR)}
-	set statusline+=%*
-< for maximum statusline information.
-
-You are encouraged to write your own statusline function referencing
-|tabloid#haserror()| if you prefer different fromatting.
+tabloid#status#info()				*tabloid#status#info()*
+	[ X]	if indents are spaces (where X is the shiftwidth)
+	[▷X]	if indents are tabs (where X is the tabstop).
 
 =============================================================================
-EXTRAS                                          *tabloid-extras*
+FUNCTIONS                                       *tabloid-functions*
+
+tabloid#haserror()				*tabloid#haserror()*
+	This function lets you know when a file has indentation errors. You
+	can add it to your statusline with the following command:
+>
+		set statusline+=%#ErrorMsg#
+		set statusline+=%{tabloid#haserror()?'[indent]':''}
+		set statusline+=%*
+<
 
 tabloid#set({spaces}, {width})                  *tabloid#set()*
-'tabloid#set' is an abstraction over |TabloidSpacify|, |TabloidTabify|, and
-|TabloidToggle|. {spaces} determines whether or not tabbing in the file will
-be set to spaces. (To toggle, use '!&et'.) {width} will determine the new
-width of indents in the file. If {width} is 0 then the current 'shiftwidth'
-will be used. If {width} is -1 then |v:count| will be used, which allows for
-some cool mapping tricks. See |tabloid-mapping|.
+	'tabloid#set' is an abstraction over |TabloidSpacify|,
+	|TabloidTabify|, and |TabloidToggle|. {spaces} determines whether or
+	not tabbing in the file will be set to spaces. (To toggle, use
+	'!&et'.) {width} will determine the new width of indents in the file.
+	If {width} is 0 then the current 'shiftwidth' will be used. If {width}
+	is -1 then |v:count| will be used, which allows for some cool mapping
+	tricks. See |tabloid-mapping|.
 
 =============================================================================
 ABOUT                                           *tabloid-about*
